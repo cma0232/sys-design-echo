@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# System Design Interview Practice App
+
+A free, voice-enabled system design interview practice platform built with Next.js, powered by AI.
+
+## Features
+
+- **Voice-based Interview**: Practice speaking your designs just like a real interview
+- **Multiple LLM Support**: Works with Claude (Anthropic), GPT (OpenAI), or Gemini (Google)
+- **Interactive Diagram**: Draw your system architecture using Excalidraw
+- **Real-time Feedback**: Get detailed evaluation on scalability, trade-offs, and communication
+- **Free to Use**: 100% free - bring your own API key (free tier works!)
+- **30-Minute Sessions**: Timed practice sessions mimicking real interviews
+
+## Tech Stack
+
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS
+- **UI Components**: Shadcn/ui, Excalidraw
+- **AI**: Vercel AI SDK with support for:
+  - Anthropic Claude
+  - OpenAI GPT
+  - Google Gemini
+- **Voice**: Browser Web Speech API (free, no external services)
+- **Camera**: WebRTC
+- **State Management**: Zustand
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ and npm
+- An API key from one of:
+  - [Anthropic](https://console.anthropic.com/) (recommended)
+  - [OpenAI](https://platform.openai.com/api-keys)
+  - [Google AI Studio](https://aistudio.google.com/app/apikey)
+
+All providers offer free tiers that are sufficient for this app!
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Run the development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Usage
 
-## Learn More
+1. **Enter API Key**: On first visit, enter your LLM API key (stored locally in your browser)
+2. **Select Topic**: Choose from 10 classic system design topics
+3. **Start Interview**: Begin your 30-minute practice session
+4. **Speak & Draw**:
+   - Click "Start Speaking" to answer questions via voice
+   - Draw your system diagram in the main canvas
+   - The AI interviewer will ask follow-up questions
+5. **Submit**: When done (or time runs out), submit for feedback
+6. **Review Feedback**: Get scores and detailed feedback on scalability, trade-offs, and communication
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment (Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This app is optimized for Vercel deployment:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Push your code to GitHub
+2. Import the repository in Vercel
+3. Deploy (zero configuration needed!)
+4. Share with friends - they'll need their own API keys
 
-## Deploy on Vercel
+## Browser Compatibility
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Best Experience**: Chrome or Edge (for Web Speech API)
+- **Supported**: All modern browsers (Firefox, Safari) but voice features may vary
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Cost
+
+- **Development**: Free
+- **Hosting on Vercel**: Free tier is sufficient
+- **AI API Costs**: You use your own API key
+  - Example: ~$0.10-0.30 per 30-min interview with Claude
+  - Free tiers typically include enough credits for many practice sessions
+
+## License
+
+MIT
