@@ -100,7 +100,7 @@ Respond with a JSON object in this exact format:
         },
       ],
       temperature: 0.3,
-      maxTokens: 1500,
+      maxOutputTokens: 1500,
     });
 
     // Parse JSON from response
