@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { useInterviewStore } from '@/lib/store/interview-store';
 import { CameraView } from '@/components/camera/camera-view';
 import ExcalidrawWrapper, { exportDiagramAsImage } from '@/components/diagram/excalidraw-wrapper';
@@ -36,28 +37,32 @@ export function InterviewSession() {
   const lastMessageRef = useRef<string>('');
   const hasStartedRef = useRef(false);
 
-  const { messages, append, isLoading } = useChat({
-    api: '/api/interview',
-    body: {
-      provider: selectedProvider,
-      apiKey: apiKeys[selectedProvider],
-      topic: selectedTopic,
-    },
-    onFinish: (message) => {
-      // Speak the assistant's response
-      console.log('AI response received:', message.content);
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/interview',
+      body: {
+        provider: selectedProvider,
+        apiKey: apiKeys[selectedProvider],
+        topic: selectedTopic,
+      },
+    }),
+    onFinish: ({ message }) => {
+      const content = message.parts.find((p) => p.type === 'text')?.text ?? '';
+      console.log('AI response received:', content);
       setIsAISpeaking(true);
-      speakText(message.content, () => {
+      speakText(content, () => {
         console.log('AI finished speaking');
         setIsAISpeaking(false);
       });
       addMessage({
         role: 'assistant',
-        content: message.content,
+        content,
         timestamp: Date.now(),
       });
     },
   });
+
+  const isLoading = status === 'submitted' || status === 'streaming';
 
   // Timer
   useEffect(() => {
@@ -81,12 +86,11 @@ export function InterviewSession() {
   useEffect(() => {
     if (!hasStartedRef.current && messages.length === 0) {
       hasStartedRef.current = true;
-      append({
-        role: 'user',
-        content: `Hello! I'm ready to discuss the ${selectedTopic} system design. Please start by asking me your first question.`,
+      sendMessage({
+        text: `Hello! I'm ready to discuss the ${selectedTopic} system design. Please start by asking me your first question.`,
       });
     }
-  }, [messages.length, selectedTopic, append]);
+  }, [messages.length, selectedTopic, sendMessage]);
 
   const handleTranscript = async (text: string) => {
     if (!text || isLoading) return;
@@ -101,10 +105,7 @@ export function InterviewSession() {
       timestamp: Date.now(),
     });
 
-    await append({
-      role: 'user',
-      content: text,
-    });
+    await sendMessage({ text });
   };
 
   const handleSubmit = async () => {
@@ -123,7 +124,10 @@ export function InterviewSession() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages,
+          messages: messages.map((m) => ({
+            role: m.role,
+            content: m.parts.find((p) => p.type === 'text')?.text ?? '',
+          })),
           provider: selectedProvider,
           apiKey: apiKeys[selectedProvider],
           topic: selectedTopic,
