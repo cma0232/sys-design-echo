@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 import { useInterviewStore } from '@/lib/store/interview-store';
 import { CameraView } from '@/components/camera/camera-view';
 import ExcalidrawWrapper, { exportDiagramAsImage } from '@/components/diagram/excalidraw-wrapper';
