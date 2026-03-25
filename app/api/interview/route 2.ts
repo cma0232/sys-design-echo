@@ -1,9 +1,9 @@
 'use server';
 
 import { streamText } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { google } from '@ai-sdk/google';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import type { LLMProvider } from '@/types';
 
 export async function POST(req: Request) {
@@ -17,15 +17,21 @@ export async function POST(req: Request) {
     // Select model based on provider
     let model;
     switch (provider as LLMProvider) {
-      case 'anthropic':
-        model = anthropic('claude-3-5-sonnet-20241022', { apiKey });
+      case 'anthropic': {
+        const anthropicProvider = createAnthropic({ apiKey });
+        model = anthropicProvider('claude-3-5-sonnet-20241022');
         break;
-      case 'openai':
-        model = openai('gpt-4-turbo-preview', { apiKey });
+      }
+      case 'openai': {
+        const openaiProvider = createOpenAI({ apiKey });
+        model = openaiProvider('gpt-4-turbo-preview');
         break;
-      case 'google':
-        model = google('gemini-1.5-pro', { apiKey });
+      }
+      case 'google': {
+        const googleProvider = createGoogleGenerativeAI({ apiKey });
+        model = googleProvider('gemini-1.5-pro');
         break;
+      }
       default:
         return new Response('Invalid provider', { status: 400 });
     }
