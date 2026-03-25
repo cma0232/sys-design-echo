@@ -61,7 +61,7 @@ Start by asking about requirements and constraints. Then progressively dive deep
       maxOutputTokens: 500,
     });
 
-    return result.toAIStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error: any) {
     console.error('Interview API error:', error);
     return new Response(error.message || 'Internal server error', {
