@@ -4,12 +4,12 @@ import { useEffect, useState, useRef } from 'react';
 import { useChat } from 'ai/react';
 import { useInterviewStore } from '@/lib/store/interview-store';
 import { CameraView } from '@/components/camera/camera-view';
-import { ExcalidrawWrapper, exportDiagramAsImage } from '@/components/diagram/excalidraw-wrapper';
+import ExcalidrawWrapper, { exportDiagramAsImage } from '@/components/diagram/excalidraw-wrapper';
 import { SpeechInterface, speakText } from '@/components/speech/speech-interface';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Pause, Play, Send } from 'lucide-react';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types/types';
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 
 export function InterviewSession() {
   const {

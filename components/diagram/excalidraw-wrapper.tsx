@@ -1,5 +1,6 @@
 import dynamic from "next/dynamic";
 import "@excalidraw/excalidraw/index.css";
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
