@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const result = await generateText({
       model,
       prompt: 'Hello',
-      maxTokens: 10,
+      maxOutputTokens: 10,
     });
 
     console.log('✅ API key validation successful');

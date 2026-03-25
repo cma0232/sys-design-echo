@@ -64,7 +64,7 @@ Start by asking about requirements and constraints. Then progressively dive deep
       system: systemPrompt,
       messages,
       temperature: 0.7,
-      maxTokens: 500,
+      maxOutputTokens: 500,
     });
 
     return result.toAIStreamResponse();
