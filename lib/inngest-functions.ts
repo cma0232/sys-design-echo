@@ -5,10 +5,9 @@ export const syncNotionPageFn = inngest.createFunction(
   {
     id: 'sync-notion-page',
     retries: 3,
-    // Deduplicate: if the same page fires multiple events quickly, only run once
     debounce: { period: '10s', key: 'event.data.pageId' },
+    triggers: [{ event: 'notion/page.updated' }],
   },
-  { event: 'notion/page.updated' },
   async ({ event, step }) => {
     const { pageId } = event.data;
 
