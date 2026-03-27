@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     switch (provider as LLMProvider) {
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey });
-        model = anthropicProvider('claude-3-5-sonnet-20241022');
+        model = anthropicProvider('claude-haiku-4-5-20251001');
         break;
       }
       case 'openai': {

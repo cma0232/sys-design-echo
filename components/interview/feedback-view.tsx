@@ -8,13 +8,11 @@ import { Progress } from '@/components/ui/progress';
 export function FeedbackView() {
   const { feedback, selectedTopic, reset } = useInterviewStore();
 
-  if (!feedback) {
-    return null;
-  }
+  if (!feedback) return null;
 
   const renderScore = (score: number, label: string, feedbackText: string) => {
-    const percentage = (score / 5) * 100;
-    const color = score >= 4 ? 'bg-green-500' : score >= 3 ? 'bg-yellow-500' : 'bg-red-500';
+    const percentage = (score / 4) * 100;
+    const color = score >= 3 ? 'bg-green-500' : score >= 2 ? 'bg-yellow-500' : 'bg-red-500';
 
     return (
       <div className="space-y-3">
@@ -22,7 +20,7 @@ export function FeedbackView() {
           <h3 className="font-semibold text-gray-900">{label}</h3>
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold text-gray-900">{score}</span>
-            <span className="text-gray-500">/5</span>
+            <span className="text-gray-500">/4</span>
           </div>
         </div>
         <Progress value={percentage} className={`h-2 ${color}`} />
@@ -32,13 +30,16 @@ export function FeedbackView() {
   };
 
   const averageScore = (
-    (feedback.scalability.score + feedback.tradeoffs.score + feedback.communication.score) / 3
+    (feedback.problemFraming.score +
+      feedback.architectureDesign.score +
+      feedback.tradeoffDiscussion.score +
+      feedback.communicationDrive.score) /
+    4
   ).toFixed(1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <Card>
           <CardHeader>
             <CardTitle className="text-3xl">Interview Feedback</CardTitle>
@@ -49,41 +50,30 @@ export function FeedbackView() {
               <div className="text-5xl font-bold text-gray-900">{averageScore}</div>
               <div className="text-gray-600">
                 <div className="font-medium">Overall Score</div>
-                <div className="text-sm">Average across all dimensions</div>
+                <div className="text-sm">Average across 4 core dimensions</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Individual Scores */}
         <Card>
           <CardHeader>
             <CardTitle>Detailed Scores</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {renderScore(
-              feedback.scalability.score,
-              'Scalability',
-              feedback.scalability.feedback
-            )}
+            {renderScore(feedback.problemFraming.score, 'Problem Framing', feedback.problemFraming.feedback)}
             <div className="border-t pt-6">
-              {renderScore(
-                feedback.tradeoffs.score,
-                'Trade-offs',
-                feedback.tradeoffs.feedback
-              )}
+              {renderScore(feedback.architectureDesign.score, 'Architecture Design', feedback.architectureDesign.feedback)}
             </div>
             <div className="border-t pt-6">
-              {renderScore(
-                feedback.communication.score,
-                'Communication',
-                feedback.communication.feedback
-              )}
+              {renderScore(feedback.tradeoffDiscussion.score, 'Trade-off Discussion', feedback.tradeoffDiscussion.feedback)}
+            </div>
+            <div className="border-t pt-6">
+              {renderScore(feedback.communicationDrive.score, 'Communication & Drive', feedback.communicationDrive.feedback)}
             </div>
           </CardContent>
         </Card>
 
-        {/* Overall Feedback */}
         <Card>
           <CardHeader>
             <CardTitle>Overall Assessment</CardTitle>
@@ -95,7 +85,6 @@ export function FeedbackView() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="flex gap-4">
           <Button onClick={reset} size="lg" className="flex-1">
             Practice Again

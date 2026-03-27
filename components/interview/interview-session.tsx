@@ -24,6 +24,8 @@ export function InterviewSession() {
     isPaused,
     timeRemaining,
     isCameraEnabled,
+    ragContext,
+    setRagContext,
     pauseInterview,
     resumeInterview,
     decrementTime,
@@ -76,6 +78,7 @@ export function InterviewSession() {
           provider: selectedProvider,
           apiKey: apiKeys[selectedProvider],
           topic: selectedTopic,
+          ragContext,
         }),
       });
 
@@ -176,9 +179,28 @@ export function InterviewSession() {
       }
 
       console.log('🚀 Starting interview for topic:', selectedTopic);
-      const initialMessage = `Hello! I'm ready to discuss the ${selectedTopic} system design. Please start by asking me your first question.`;
-      console.log('📤 Sending initial message to AI...');
-      sendMessageToAI(initialMessage);
+
+      (async () => {
+        // Fetch RAG context before starting
+        try {
+          const ragRes = await fetch('/api/retrieve-context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: selectedTopic }),
+          });
+          const { context } = await ragRes.json();
+          if (context) {
+            setRagContext(context);
+            console.log('📚 RAG context loaded');
+          }
+        } catch (e) {
+          console.warn('RAG context fetch failed, proceeding without it');
+        }
+
+        const initialMessage = `Hello! I'm ready to discuss the ${selectedTopic} system design. Please start by asking me your first question.`;
+        console.log('📤 Sending initial message to AI...');
+        sendMessageToAI(initialMessage);
+      })();
     }
   }, [messages.length, selectedTopic, apiKeys, selectedProvider, endInterview]);
 
@@ -242,6 +264,7 @@ export function InterviewSession() {
           apiKey: apiKeys[selectedProvider],
           topic: selectedTopic,
           diagramImage,
+          ragContext,
         }),
       });
 

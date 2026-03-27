@@ -8,20 +8,18 @@ import type { LLMProvider } from '@/types';
 
 export async function POST(req: Request) {
   try {
-    const { messages, provider, apiKey, topic, diagramImage } = await req.json();
+    const { messages, provider, apiKey, topic, diagramImage, ragContext } = await req.json();
 
-    // Create model with the API key from request
     let model;
     switch (provider as LLMProvider) {
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey });
-        model = anthropicProvider('claude-3-5-sonnet-20241022');
+        model = anthropicProvider('claude-sonnet-4-6');
         break;
       }
       case 'openai': {
         const openaiProvider = createOpenAI({ apiKey });
-        // Use vision-capable model for image analysis
-        model = openaiProvider('gpt-4-turbo');
+        model = openaiProvider('gpt-4o');
         break;
       }
       case 'google': {
@@ -37,85 +35,68 @@ export async function POST(req: Request) {
       .map((m: any) => `${m.role}: ${m.content}`)
       .join('\n\n');
 
-    const systemPrompt = `You are an experienced technical interviewer evaluating a system design interview.
+    const knowledgeSection = ragContext
+      ? `## REFERENCE KNOWLEDGE\nUse this as the standard to evaluate the candidate's answer:\n\n${ragContext}\n\n`
+      : '';
 
-Topic: ${topic}
+    const systemPrompt = `You are an expert Frontend System Design interviewer evaluating a candidate's performance.
 
-Evaluate the candidate's performance across three dimensions and provide scores (1-5) and detailed feedback for each:
+## TOPIC
+${topic}
 
-1. **Scalability**: How well did they address scalability concerns, bottlenecks, and growth?
-2. **Trade-offs**: Did they identify and discuss trade-offs between different approaches?
-3. **Communication**: How clearly did they explain their thinking and design decisions?
+${knowledgeSection}## EVALUATION RUBRIC
+Score each dimension 1–4:
+- 1: Not addressed
+- 2: Mentioned but shallow
+- 3: Clear discussion with reasoning
+- 4: Deep insight, considers edge cases and second-order effects
 
-Also provide overall feedback and suggestions for improvement.
+### Core Dimensions (evaluate all):
+1. **Problem Framing**: Did they ask clarifying questions? Define scope and constraints? Identify frontend-specific constraints?
+2. **Architecture Design**: Was the component hierarchy logical? Was state management appropriate? Was data flow clear?
+3. **Trade-off Discussion**: Did they proactively raise multiple approaches and compare them? Were decisions context-driven?
+4. **Communication & Drive**: Did they lead the conversation? Was thinking structured? Did they handle follow-ups well?
 
-Conversation History:
+## CONVERSATION
 ${conversationHistory}
 
-${diagramImage ? 'The candidate also provided a system design diagram (image attached).' : ''}
+${diagramImage ? '## DIAGRAM\nThe candidate provided a system design diagram (attached).' : ''}
 
-Respond with a JSON object in this exact format:
+Respond with ONLY a JSON object in this exact format:
 {
-  "scalability": {
-    "score": <1-5>,
-    "feedback": "<detailed feedback>"
-  },
-  "tradeoffs": {
-    "score": <1-5>,
-    "feedback": "<detailed feedback>"
-  },
-  "communication": {
-    "score": <1-5>,
-    "feedback": "<detailed feedback>"
-  },
-  "overallFeedback": "<overall assessment and improvement suggestions>"
+  "problemFraming": { "score": <1-4>, "feedback": "<specific, actionable feedback>" },
+  "architectureDesign": { "score": <1-4>, "feedback": "<specific, actionable feedback>" },
+  "tradeoffDiscussion": { "score": <1-4>, "feedback": "<specific, actionable feedback>" },
+  "communicationDrive": { "score": <1-4>, "feedback": "<specific, actionable feedback>" },
+  "overallFeedback": "<2-3 sentences: overall assessment + top 1-2 things to improve>"
 }`;
 
     const userContent: any[] = [
-      {
-        type: 'text',
-        text: 'Please evaluate this system design interview based on the conversation history.',
-      },
+      { type: 'text', text: 'Please evaluate this frontend system design interview.' },
     ];
 
-    // Add diagram image if provided
     if (diagramImage) {
-      console.log('📊 Adding diagram image to evaluation');
-      console.log('📊 Image data length:', diagramImage.length);
-      console.log('📊 Image format:', diagramImage.substring(0, 30) + '...');
-
-      userContent.push({
-        type: 'image',
-        image: diagramImage, // base64 data URL format: data:image/png;base64,...
-      });
+      userContent.push({ type: 'image', image: diagramImage });
     }
 
     const result = await generateText({
       model,
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userContent,
-        },
-      ],
+      messages: [{ role: 'user', content: userContent }],
       temperature: 0.3,
       maxOutputTokens: 1500,
     });
 
-    // Parse JSON from response
     const feedbackText = result.text.trim();
-    // Extract JSON from markdown code blocks if present
-    const jsonMatch = feedbackText.match(/```json\n([\s\S]*?)\n```/) ||
-                     feedbackText.match(/```\n([\s\S]*?)\n```/);
+    const jsonMatch =
+      feedbackText.match(/```json\n([\s\S]*?)\n```/) ||
+      feedbackText.match(/```\n([\s\S]*?)\n```/);
     const jsonText = jsonMatch ? jsonMatch[1] : feedbackText;
     const feedback = JSON.parse(jsonText);
 
     return Response.json(feedback);
   } catch (error: any) {
     console.error('Evaluate API error:', error);
-    return new Response(error.message || 'Internal server error', {
-      status: 500,
-    });
+    return new Response(error.message || 'Internal server error', { status: 500 });
   }
 }

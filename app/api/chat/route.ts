@@ -8,29 +8,22 @@ import type { LLMProvider } from '@/types';
 
 export async function POST(req: Request) {
   try {
-    const { messages, provider, apiKey, topic } = await req.json();
+    const { messages, provider, apiKey, topic, ragContext } = await req.json();
 
     if (!messages || !provider || !apiKey || !topic) {
       return new Response('Missing required fields', { status: 400 });
     }
 
-    console.log('🔧 Interview API received:');
-    console.log('  Provider:', provider);
-    console.log('  API Key exists:', !!apiKey);
-    console.log('  Topic:', topic);
-
     let model;
-
-    // Create model with the API key from request
     switch (provider as LLMProvider) {
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey });
-        model = anthropicProvider('claude-3-5-sonnet-20241022');
+        model = anthropicProvider('claude-sonnet-4-6');
         break;
       }
       case 'openai': {
         const openaiProvider = createOpenAI({ apiKey });
-        model = openaiProvider('gpt-3.5-turbo');
+        model = openaiProvider('gpt-4o');
         break;
       }
       case 'google': {
@@ -42,36 +35,45 @@ export async function POST(req: Request) {
         return new Response('Invalid provider', { status: 400 });
     }
 
-    const systemPrompt = `You are an experienced technical interviewer conducting a system design interview.
+    const knowledgeSection = ragContext
+      ? `## RELEVANT KNOWLEDGE BASE\nUse the following frontend system design knowledge to ask informed, specific questions and follow-ups:\n\n${ragContext}`
+      : '';
 
-Topic: ${topic}
+    const systemPrompt = `You are an expert Frontend System Design interviewer at a top tech company (Meta, Google, Airbnb level).
 
-Your role:
-- Ask thoughtful, probing questions about the system design
-- Focus on scalability, trade-offs, and architectural decisions
-- Guide the candidate through different aspects: requirements, high-level design, detailed design, scalability, etc.
-- Be encouraging but thorough
-- Ask follow-up questions based on their responses
-- DO NOT provide solutions - let the candidate think through problems
-- Keep responses concise and conversational (this is a voice conversation)
+## TOPIC
+${topic}
 
-Remember: The candidate is drawing a diagram while talking. Reference their diagram when appropriate.
+${knowledgeSection}
 
-Start by asking about requirements and constraints. Then progressively dive deeper into the design.`;
+## YOUR ROLE
+- Focus exclusively on FRONTEND architecture — components, state, data flow, rendering, performance, UX
+- Do NOT discuss backend infrastructure, databases, or distributed systems
+- Use the CCDAO framework to guide the interview: Clarify → Component Structure → Data Modeling → API Design → Optimization
+- Ask one focused question at a time, then probe deeper based on their answer
+- DO NOT provide solutions — ask questions that guide the candidate to think through problems themselves
+- Keep each response to 2-3 sentences max (this is a voice conversation)
+
+## EVALUATION DIMENSIONS TO PROBE
+- **Problem Framing**: Do they ask clarifying questions? Define scope?
+- **Architecture Design**: Component hierarchy, state management, data flow
+- **Trade-off Discussion**: Do they proactively compare multiple approaches?
+- **Communication**: Are they leading the discussion or waiting to be prompted?
+
+## CONTEXT
+The candidate is drawing a system design diagram while talking. Reference their diagram when appropriate.
+Start with requirements clarification, then guide through component design, data modeling, and optimizations.`;
 
     const result = streamText({
       model,
       system: systemPrompt,
       messages,
       temperature: 0.7,
-      // maxTokens: 500,
     });
 
     return result.toTextStreamResponse();
   } catch (error: any) {
     console.error('Interview API error:', error);
-    return new Response(error.message || 'Internal server error', {
-      status: 500,
-    });
+    return new Response(error.message || 'Internal server error', { status: 500 });
   }
 }

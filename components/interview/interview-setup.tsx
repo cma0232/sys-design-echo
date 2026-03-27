@@ -5,7 +5,7 @@ import { useInterviewStore } from '@/lib/store/interview-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SYSTEM_DESIGN_TOPICS } from '@/types';
+import { FRONTEND_SD_TOPICS } from '@/types';
 
 export function InterviewSetup({ onStart }: { onStart: () => void }) {
   const [selectedTopic, setSelectedTopic] = useState<string>('');
@@ -35,7 +35,7 @@ export function InterviewSetup({ onStart }: { onStart: () => void }) {
                 <SelectValue placeholder="Choose a system design topic..." />
               </SelectTrigger>
               <SelectContent>
-                {SYSTEM_DESIGN_TOPICS.map((topic) => (
+                {FRONTEND_SD_TOPICS.map((topic) => (
                   <SelectItem key={topic} value={topic}>
                     {topic}
                   </SelectItem>

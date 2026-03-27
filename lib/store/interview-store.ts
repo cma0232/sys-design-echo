@@ -16,6 +16,10 @@ interface InterviewStore {
   selectedTopic: string;
   messages: Message[];
 
+  // RAG context retrieved at interview start
+  ragContext: string;
+  setRagContext: (context: string) => void;
+
   // Camera State
   isCameraEnabled: boolean;
 
@@ -38,12 +42,11 @@ interface InterviewStore {
   reset: () => void;
 }
 
-const INITIAL_TIME = 30 * 60; // 30 minutes in seconds
+const INITIAL_TIME = 30 * 60;
 
 export const useInterviewStore = create<InterviewStore>()(
   persist(
     (set) => ({
-      // Initial state
       apiKeys: {},
       selectedProvider: 'anthropic',
       isActive: false,
@@ -51,18 +54,17 @@ export const useInterviewStore = create<InterviewStore>()(
       timeRemaining: INITIAL_TIME,
       selectedTopic: '',
       messages: [],
+      ragContext: '',
       isCameraEnabled: false,
       diagramData: null,
       feedback: null,
 
-      // Actions
       setAPIKey: (provider, key) =>
-        set((state) => ({
-          apiKeys: { ...state.apiKeys, [provider]: key },
-        })),
+        set((state) => ({ apiKeys: { ...state.apiKeys, [provider]: key } })),
 
-      setProvider: (provider) =>
-        set({ selectedProvider: provider }),
+      setProvider: (provider) => set({ selectedProvider: provider }),
+
+      setRagContext: (context) => set({ ragContext: context }),
 
       startInterview: (topic) =>
         set({
@@ -71,38 +73,28 @@ export const useInterviewStore = create<InterviewStore>()(
           selectedTopic: topic,
           timeRemaining: INITIAL_TIME,
           messages: [],
+          ragContext: '',
           feedback: null,
         }),
 
-      pauseInterview: () =>
-        set({ isPaused: true }),
+      pauseInterview: () => set({ isPaused: true }),
 
-      resumeInterview: () =>
-        set({ isPaused: false }),
+      resumeInterview: () => set({ isPaused: false }),
 
-      endInterview: () =>
-        set({ isActive: false, isPaused: false }),
+      endInterview: () => set({ isActive: false, isPaused: false }),
 
       addMessage: (message) =>
-        set((state) => ({
-          messages: [...state.messages, message],
-        })),
+        set((state) => ({ messages: [...state.messages, message] })),
 
       decrementTime: () =>
-        set((state) => ({
-          timeRemaining: Math.max(0, state.timeRemaining - 1),
-        })),
+        set((state) => ({ timeRemaining: Math.max(0, state.timeRemaining - 1) })),
 
       toggleCamera: () =>
-        set((state) => ({
-          isCameraEnabled: !state.isCameraEnabled,
-        })),
+        set((state) => ({ isCameraEnabled: !state.isCameraEnabled })),
 
-      setDiagramData: (data) =>
-        set({ diagramData: data }),
+      setDiagramData: (data) => set({ diagramData: data }),
 
-      setFeedback: (feedback) =>
-        set({ feedback }),
+      setFeedback: (feedback) => set({ feedback }),
 
       reset: () =>
         set({
@@ -111,6 +103,7 @@ export const useInterviewStore = create<InterviewStore>()(
           timeRemaining: INITIAL_TIME,
           selectedTopic: '',
           messages: [],
+          ragContext: '',
           isCameraEnabled: false,
           diagramData: null,
           feedback: null,
@@ -119,7 +112,6 @@ export const useInterviewStore = create<InterviewStore>()(
     {
       name: 'interview-storage',
       storage: createJSONStorage(() => localStorage),
-      // Only persist API keys
       partialize: (state) => ({
         apiKeys: state.apiKeys,
         selectedProvider: state.selectedProvider,

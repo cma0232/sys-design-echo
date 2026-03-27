@@ -15,38 +15,40 @@ export interface Message {
 export interface InterviewState {
   isActive: boolean;
   isPaused: boolean;
-  timeRemaining: number; // in seconds
+  timeRemaining: number;
   selectedTopic: string;
   messages: Message[];
 }
 
 export interface Feedback {
-  scalability: {
-    score: number; // 1-5
+  problemFraming: {
+    score: number; // 1-4
     feedback: string;
   };
-  tradeoffs: {
-    score: number; // 1-5
+  architectureDesign: {
+    score: number;
     feedback: string;
   };
-  communication: {
-    score: number; // 1-5
+  tradeoffDiscussion: {
+    score: number;
+    feedback: string;
+  };
+  communicationDrive: {
+    score: number;
     feedback: string;
   };
   overallFeedback: string;
 }
 
-export const SYSTEM_DESIGN_TOPICS = [
-  'Design Twitter',
-  'Design URL Shortener',
-  'Design Instagram',
-  'Design Uber',
-  'Design Netflix',
-  'Design YouTube',
-  'Design Messenger',
-  'Design Dropbox',
-  'Design Web Crawler',
-  'Design Rate Limiter',
+export const FRONTEND_SD_TOPICS = [
+  'Design a Social Feed (Twitter/LinkedIn-style)',
+  'Design a Typeahead / Autocomplete',
+  'Design a Kanban Board',
+  'Design a Real-time Collaborative Editor',
+  'Design an Infinite Scroll List',
+  'Design a Dashboard with Real-time Updates',
+  'Design an Offline-capable Web App',
+  'Design a Drag-and-Drop Interface',
 ] as const;
 
-export type SystemDesignTopic = typeof SYSTEM_DESIGN_TOPICS[number];
+export type FrontendSDTopic = typeof FRONTEND_SD_TOPICS[number];
