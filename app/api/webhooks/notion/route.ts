@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
   // Verification challenge must be handled before signature check
   // (no signing secret exists yet at this point)
   if (payload.verification_token) {
+    console.log('[notion-webhook] verification_token:', payload.verification_token);
     return NextResponse.json({ verification_token: payload.verification_token });
   }
 
