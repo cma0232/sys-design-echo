@@ -29,10 +29,6 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get('x-notion-signature');
 
-  if (!verifySignature(rawBody, signature)) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-  }
-
   let payload: any;
   try {
     payload = JSON.parse(rawBody);
@@ -40,9 +36,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // Verification challenge sent once when webhook is created
+  // Verification challenge must be handled before signature check
+  // (no signing secret exists yet at this point)
   if (payload.verification_token) {
     return NextResponse.json({ verification_token: payload.verification_token });
+  }
+
+  if (!verifySignature(rawBody, signature)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   const { type, entity } = payload;
