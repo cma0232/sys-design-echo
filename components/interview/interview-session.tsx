@@ -204,48 +204,38 @@ export function InterviewSession() {
     }
   }, [messages.length, selectedTopic, apiKeys, selectedProvider, endInterview]);
 
-  const handleTranscript = async (text: string) => {
-    console.log('🎤 Transcript received:', text);
-    console.log('🎤 isLoading:', isLoading);
+  const handleTranscript = async (text: string, isFinal: boolean) => {
+    if (!text || isLoading) return;
 
-    if (!text || isLoading) {
-      console.log('⚠️ Ignoring transcript - empty or loading');
-      return;
-    }
-
-    // Clear any existing timer
+    // Always reset the silence timer on any speech activity
     if (transcriptTimerRef.current) {
       clearTimeout(transcriptTimerRef.current);
-      console.log('⏱️ Cleared previous timer, user is still speaking...');
     }
 
-    // Accumulate transcript (in case of multiple chunks)
+    // Only accumulate final results
+    if (!isFinal) return;
+
     const newTranscript = pendingTranscript ? `${pendingTranscript} ${text}` : text;
     setPendingTranscript(newTranscript);
-    console.log('📝 Pending transcript:', newTranscript);
 
-    // Wait 3 seconds of silence before sending to AI
+    // Wait 1s of silence after a final result before sending to AI
     transcriptTimerRef.current = setTimeout(() => {
-      console.log('✅ User finished speaking, sending to AI:', newTranscript);
-
-      // Avoid duplicate messages
-      if (newTranscript === lastMessageRef.current) {
-        console.log('⚠️ Ignoring duplicate message');
-        return;
-      }
+      if (newTranscript === lastMessageRef.current) return;
       lastMessageRef.current = newTranscript;
-
-      // Clear pending and send
       setPendingTranscript('');
       sendMessageToAI(newTranscript);
-    }, 3000); // 3 seconds delay
-
-    console.log('⏱️ Timer started - waiting for user to finish speaking...');
+    }, 1000);
   };
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+
+    // Stop any ongoing TTS immediately
+    if (typeof window !== 'undefined') {
+      window.speechSynthesis.cancel();
+    }
+    setIsAISpeaking(false);
 
     try {
       // Export diagram
@@ -347,6 +337,7 @@ export function InterviewSession() {
               isListening={isListening}
               onListeningChange={setIsListening}
               onSpeakingChange={setIsUserSpeaking}
+              isAISpeaking={isAISpeaking}
             />
           </div>
 

@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Mic, MicOff } from 'lucide-react';
 
 interface SpeechInterfaceProps {
-  onTranscript: (text: string) => void;
+  onTranscript: (text: string, isFinal: boolean) => void;
   onSpeakText: (text: string) => void;
   isListening: boolean;
   onListeningChange: (isListening: boolean) => void;
   onSpeakingChange?: (isSpeaking: boolean) => void;
+  isAISpeaking?: boolean;
 }
 
 export function SpeechInterface({
@@ -18,10 +19,18 @@ export function SpeechInterface({
   isListening,
   onListeningChange,
   onSpeakingChange,
+  isAISpeaking = false,
 }: SpeechInterfaceProps) {
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(isListening);
+  const pausedByAIRef = useRef(false); // tracks if WE paused recognition due to AI speaking
   const [isSupported, setIsSupported] = useState(true);
   const [hasAudioInput, setHasAudioInput] = useState<boolean | null>(null);
+
+  // Keep ref in sync so onend closure always sees latest value
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
 
   // Check microphone permissions and availability
   useEffect(() => {
@@ -29,36 +38,16 @@ export function SpeechInterface({
 
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(async (stream) => {
-        console.log('✅ Microphone access granted');
-
-        // List all audio input devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         const audioInputs = devices.filter(device => device.kind === 'audioinput');
-        console.log('🎤 Available microphones:');
-        audioInputs.forEach((device, index) => {
-          console.log(`  ${index + 1}. ${device.label || 'Microphone ' + (index + 1)} (${device.deviceId})`);
-        });
-
-        // Check which microphone is currently being used
-        const audioTrack = stream.getAudioTracks()[0];
-        if (audioTrack) {
-          console.log('🎤 Currently using:', audioTrack.label);
-          const settings = audioTrack.getSettings();
-          console.log('🎤 Track settings:', settings);
-        }
-
+        console.log('🎤 Available microphones:', audioInputs.map(d => d.label));
         setHasAudioInput(true);
-        // Stop the stream immediately
         stream.getTracks().forEach(track => track.stop());
       })
-      .catch((error) => {
-        console.error('❌ Microphone access denied:', error);
-        setHasAudioInput(false);
-      });
+      .catch(() => setHasAudioInput(false));
   }, []);
 
   useEffect(() => {
-    // Check if Web Speech API is supported
     if (typeof window === 'undefined') return;
 
     const SpeechRecognition =
@@ -66,82 +55,94 @@ export function SpeechInterface({
 
     if (!SpeechRecognition) {
       setIsSupported(false);
-      console.error('Speech Recognition not supported in this browser');
       return;
     }
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
-
-    recognition.onstart = () => {
-      console.log('🎤 Speech recognition started');
-    };
 
     recognition.onresult = (event: any) => {
       const last = event.results.length - 1;
-      const transcript = event.results[last][0].transcript;
-      console.log('🎤 User said:', transcript);
-      console.log('🎤 Calling onTranscript with:', transcript);
+      const result = event.results[last];
+      const transcript = result[0].transcript;
+      const isFinal = result.isFinal;
+
+      // User is speaking — immediately stop AI TTS
+      window.speechSynthesis.cancel();
       onSpeakingChange?.(true);
-      onTranscript(transcript);
-      // Reset speaking state after a short delay
-      setTimeout(() => onSpeakingChange?.(false), 1000);
+
+      // Only forward final results to the transcript handler
+      // interim results are used only to cancel AI speech and reset the silence timer
+      onTranscript(transcript, isFinal);
+
+      if (isFinal) {
+        setTimeout(() => onSpeakingChange?.(false), 500);
+      }
     };
 
     recognition.onerror = (event: any) => {
       console.error('❌ Speech recognition error:', event.error);
-      console.error('❌ Error details:', event);
-      onListeningChange(false);
+      if (event.error !== 'aborted') {
+        onListeningChange(false);
+      }
     };
 
     recognition.onend = () => {
-      console.log('🎤 Speech recognition ended. isListening:', isListening);
-      if (isListening) {
-        // Restart if we're still supposed to be listening
-        console.log('🎤 Restarting speech recognition...');
+      // Only restart if user wants to listen AND we didn't pause for AI
+      if (isListeningRef.current && !pausedByAIRef.current) {
         try {
           recognition.start();
-        } catch (error) {
-          console.error('❌ Error restarting recognition:', error);
-        }
+        } catch (_) {}
       }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
+      recognitionRef.current?.stop();
     };
   }, []);
 
+  // Start/stop based on user toggle
   useEffect(() => {
-    if (!recognitionRef.current) {
-      console.log('⚠️ recognitionRef.current is null');
-      return;
-    }
+    if (!recognitionRef.current) return;
 
     if (isListening) {
-      console.log('🎤 Attempting to start speech recognition...');
+      pausedByAIRef.current = false;
       try {
         recognitionRef.current.start();
-        console.log('✅ Speech recognition start() called');
-      } catch (error) {
-        console.error('❌ Error starting recognition:', error);
-      }
+      } catch (_) {}
     } else {
-      console.log('🎤 Stopping speech recognition...');
       try {
         recognitionRef.current.stop();
-        console.log('✅ Speech recognition stop() called');
-      } catch (error) {
-        console.error('❌ Error stopping recognition:', error);
-      }
+      } catch (_) {}
     }
   }, [isListening]);
+
+  // Pause mic while AI is speaking to prevent echo
+  useEffect(() => {
+    if (!recognitionRef.current || !isListening) return;
+
+    if (isAISpeaking) {
+      pausedByAIRef.current = true;
+      try {
+        recognitionRef.current.stop();
+      } catch (_) {}
+    } else {
+      // Resume after AI finishes — small delay to clear speaker echo
+      const timer = setTimeout(() => {
+        if (isListeningRef.current) {
+          pausedByAIRef.current = false;
+          try {
+            recognitionRef.current?.start();
+          } catch (_) {}
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isAISpeaking]);
 
   const toggleListening = () => {
     onListeningChange(!isListening);
@@ -200,7 +201,6 @@ export function speakText(text: string, onEnd?: () => void) {
     return;
   }
 
-  // Cancel any ongoing speech
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
