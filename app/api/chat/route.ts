@@ -8,7 +8,7 @@ import type { LLMProvider } from '@/types';
 
 export async function POST(req: Request) {
   try {
-    const { messages, provider, apiKey, topic, ragContext } = await req.json();
+    const { messages, provider, apiKey, model: modelId, topic, ragContext } = await req.json();
 
     if (!messages || !provider || !apiKey || !topic) {
       return new Response('Missing required fields', { status: 400 });
@@ -18,17 +18,17 @@ export async function POST(req: Request) {
     switch (provider as LLMProvider) {
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey });
-        model = anthropicProvider('claude-sonnet-4-6');
+        model = anthropicProvider(modelId || 'claude-sonnet-4-6');
         break;
       }
       case 'openai': {
         const openaiProvider = createOpenAI({ apiKey });
-        model = openaiProvider('gpt-4o');
+        model = openaiProvider(modelId || 'gpt-4o');
         break;
       }
       case 'google': {
         const googleProvider = createGoogleGenerativeAI({ apiKey });
-        model = googleProvider('gemini-2.5-pro');
+        model = googleProvider(modelId || 'gemini-2.0-flash');
         break;
       }
       default:

@@ -1,13 +1,16 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { APIKeys, LLMProvider, Message, Feedback } from '@/types';
+import { PROVIDER_MODELS } from '@/types';
 
 interface InterviewStore {
   // API Keys
   apiKeys: APIKeys;
   selectedProvider: LLMProvider;
+  selectedModel: string;
   setAPIKey: (provider: LLMProvider, key: string) => void;
   setProvider: (provider: LLMProvider) => void;
+  setModel: (model: string) => void;
 
   // Interview State
   isActive: boolean;
@@ -49,6 +52,7 @@ export const useInterviewStore = create<InterviewStore>()(
     (set) => ({
       apiKeys: {},
       selectedProvider: 'anthropic',
+      selectedModel: PROVIDER_MODELS.anthropic[0].id,
       isActive: false,
       isPaused: false,
       timeRemaining: INITIAL_TIME,
@@ -62,7 +66,10 @@ export const useInterviewStore = create<InterviewStore>()(
       setAPIKey: (provider, key) =>
         set((state) => ({ apiKeys: { ...state.apiKeys, [provider]: key } })),
 
-      setProvider: (provider) => set({ selectedProvider: provider }),
+      setProvider: (provider) =>
+        set({ selectedProvider: provider, selectedModel: PROVIDER_MODELS[provider][0].id }),
+
+      setModel: (model) => set({ selectedModel: model }),
 
       setRagContext: (context) => set({ ragContext: context }),
 
@@ -115,6 +122,7 @@ export const useInterviewStore = create<InterviewStore>()(
       partialize: (state) => ({
         apiKeys: state.apiKeys,
         selectedProvider: state.selectedProvider,
+        selectedModel: state.selectedModel,
       }),
     }
   )

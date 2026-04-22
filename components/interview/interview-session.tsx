@@ -20,6 +20,7 @@ export function InterviewSession() {
   const {
     apiKeys,
     selectedProvider,
+    selectedModel,
     selectedTopic,
     isPaused,
     timeRemaining,
@@ -76,6 +77,7 @@ export function InterviewSession() {
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
           provider: selectedProvider,
+          model: selectedModel,
           apiKey: apiKeys[selectedProvider],
           topic: selectedTopic,
           ragContext,
@@ -251,6 +253,7 @@ export function InterviewSession() {
         body: JSON.stringify({
           messages,
           provider: selectedProvider,
+          model: selectedModel,
           apiKey: apiKeys[selectedProvider],
           topic: selectedTopic,
           diagramImage,

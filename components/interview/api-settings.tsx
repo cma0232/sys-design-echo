@@ -1,18 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useInterviewStore } from '@/lib/store/interview-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { LLMProvider } from '@/types';
+import { PROVIDER_MODELS } from '@/types';
 
 export function APISettings({ onComplete }: { onComplete: () => void }) {
-  const { apiKeys, selectedProvider, setAPIKey, setProvider } = useInterviewStore();
+  const { apiKeys, selectedProvider, selectedModel, setAPIKey, setProvider, setModel } = useInterviewStore();
   const [currentKey, setCurrentKey] = useState(apiKeys[selectedProvider] || '');
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // In development, auto-populate from env vars
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    fetch('/api/dev-key')
+      .then((r) => r.json())
+      .then((keys) => {
+        const key = keys[selectedProvider];
+        if (key) {
+          setAPIKey(selectedProvider, key);
+          onComplete();
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSave = async () => {
     if (!currentKey.trim()) return;
@@ -93,6 +109,25 @@ export function APISettings({ onComplete }: { onComplete: () => void }) {
               {(Object.keys(providerLabels) as LLMProvider[]).map((provider) => (
                 <SelectItem key={provider} value={provider}>
                   {providerLabels[provider]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Model</label>
+          <Select value={selectedModel} onValueChange={setModel}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PROVIDER_MODELS[selectedProvider].map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  <div className="flex flex-col">
+                    <span>{m.label}</span>
+                    <span className="text-xs text-muted-foreground">{m.description}</span>
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>

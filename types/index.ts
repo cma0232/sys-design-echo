@@ -6,6 +6,29 @@ export interface APIKeys {
   google?: string;
 }
 
+export interface ModelOption {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export const PROVIDER_MODELS: Record<LLMProvider, ModelOption[]> = {
+  anthropic: [
+    { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', description: 'Recommended — balanced speed & quality' },
+    { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', description: 'Most capable' },
+    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', description: 'Fastest & cheapest' },
+  ],
+  openai: [
+    { id: 'gpt-4o', label: 'GPT-4o', description: 'Recommended — best overall' },
+    { id: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Faster & cheaper' },
+  ],
+  google: [
+    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Most capable' },
+    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'Recommended — fast & free tier friendly' },
+    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'Lightest & cheapest' },
+  ],
+};
+
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
