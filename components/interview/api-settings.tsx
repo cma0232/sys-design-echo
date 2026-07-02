@@ -12,6 +12,7 @@ import { PROVIDER_MODELS } from '@/types';
 export function APISettings({ onComplete }: { onComplete: () => void }) {
   const { apiKeys, selectedProvider, selectedModel, setAPIKey, setProvider, setModel } = useInterviewStore();
   const [currentKey, setCurrentKey] = useState(apiKeys[selectedProvider] || '');
+  const [ttsKey, setTtsKey] = useState(apiKeys['openai'] || '');
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -21,7 +22,7 @@ export function APISettings({ onComplete }: { onComplete: () => void }) {
     fetch('/api/dev-key')
       .then((r) => r.json())
       .then((keys) => {
-        const key = keys[selectedProvider];
+          const key = keys[selectedProvider];
         if (key) {
           setAPIKey(selectedProvider, key);
           onComplete();
@@ -173,6 +174,26 @@ export function APISettings({ onComplete }: { onComplete: () => void }) {
             </p>
           )}
         </div>
+
+        {selectedProvider !== 'openai' && (
+          <div className="space-y-2 pt-2 border-t">
+            <label className="text-sm font-medium">
+              OpenAI Key <span className="text-muted-foreground font-normal">(optional, for voice)</span>
+            </label>
+            <Input
+              type="password"
+              placeholder="sk-... for high-quality TTS"
+              value={ttsKey}
+              onChange={(e) => {
+                setTtsKey(e.target.value);
+                setAPIKey('openai', e.target.value);
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Without this, browser default voice is used instead.
+            </p>
+          </div>
+        )}
 
         <Button
           onClick={handleSave}

@@ -36,6 +36,7 @@ export function InterviewSession() {
     endInterview,
   } = useInterviewStore();
 
+  const [hasStartedInterview, setHasStartedInterview] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,17 +44,36 @@ export function InterviewSession() {
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const setMessagesSync = (updater: Message[] | ((prev: Message[]) => Message[])) => {
+    setMessages((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      messagesRef.current = next;
+      return next;
+    });
+  };
   const [pendingTranscript, setPendingTranscript] = useState<string>('');
   const lastMessageRef = useRef<string>('');
   const hasStartedRef = useRef(false);
   const transcriptTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef<Message[]>([]);
+
+  const interruptAI = () => {
+    if (typeof window !== 'undefined') window.speechSynthesis.cancel();
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    setIsAISpeaking(false);
+    setIsLoading(false);
+  };
 
   // Manual function to send message and handle streaming response
   const sendMessageToAI = async (userMessage: string) => {
-    if (isLoading) return;
+    interruptAI();
 
     console.log('📤 Sending message to AI:', userMessage);
     setIsLoading(true);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     // Add user message to state
     const userMsg: Message = {
@@ -61,7 +81,8 @@ export function InterviewSession() {
       content: userMessage,
       id: Date.now().toString(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+    const currentMessages = messagesRef.current;
+    setMessagesSync((prev) => [...prev, userMsg]);
 
     // Add to store
     addMessage({
@@ -75,13 +96,14 @@ export function InterviewSession() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+          messages: [...currentMessages, userMsg].map(m => ({ role: m.role, content: m.content })),
           provider: selectedProvider,
           model: selectedModel,
           apiKey: apiKeys[selectedProvider],
           topic: selectedTopic,
           ragContext,
         }),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -112,7 +134,7 @@ export function InterviewSession() {
         content: aiResponse,
         id: (Date.now() + 1).toString(),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessagesSync((prev) => [...prev, assistantMsg]);
 
       // Add to store
       addMessage({
@@ -127,9 +149,10 @@ export function InterviewSession() {
       speakText(aiResponse, () => {
         console.log('✅ TTS finished');
         setIsAISpeaking(false);
-      });
+      }, apiKeys['openai']);
 
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
       console.error('❌ Error sending message:', error);
     } finally {
       setIsLoading(false);
@@ -163,10 +186,21 @@ export function InterviewSession() {
     }
   }, [timeRemaining]);
 
-  // Start with interviewer's first question - only once
+  // Pause: stop TTS and mic
   useEffect(() => {
+    if (isPaused) {
+      window.speechSynthesis.cancel();
+      setIsAISpeaking(false);
+      setIsListening(false);
+    }
+  }, [isPaused]);
+
+  // Start with interviewer's first question - only once, after user clicks Start
+  useEffect(() => {
+    if (!hasStartedInterview) return;
     if (!hasStartedRef.current && messages.length === 0) {
       hasStartedRef.current = true;
+      setIsListening(true);
 
       // Validate API key before starting
       const currentApiKey = apiKeys[selectedProvider];
@@ -199,15 +233,50 @@ export function InterviewSession() {
           console.warn('RAG context fetch failed, proceeding without it');
         }
 
-        const initialMessage = `Hello! I'm ready to discuss the ${selectedTopic} system design. Please start by asking me your first question.`;
-        console.log('📤 Sending initial message to AI...');
-        sendMessageToAI(initialMessage);
+        // Generate opening as assistant message so AI never needs to repeat it
+        setIsLoading(true);
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [{ role: 'user', content: `Start the interview for: ${selectedTopic}` }],
+              provider: selectedProvider,
+              model: selectedModel,
+              apiKey: apiKeys[selectedProvider],
+              topic: selectedTopic,
+              ragContext,
+            }),
+            signal: abortController.signal,
+          });
+          const reader = res.body?.getReader();
+          const decoder = new TextDecoder();
+          let opening = '';
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              opening += decoder.decode(value, { stream: true });
+            }
+          }
+          const assistantMsg: Message = { role: 'assistant', content: opening, id: Date.now().toString() };
+          setMessagesSync([assistantMsg]);
+          addMessage({ role: 'assistant', content: opening, timestamp: Date.now() });
+          setIsAISpeaking(true);
+          speakText(opening, () => setIsAISpeaking(false), apiKeys['openai']);
+        } catch (e: any) {
+          if (e?.name !== 'AbortError') console.error('Opening error:', e);
+        } finally {
+          setIsLoading(false);
+        }
       })();
     }
-  }, [messages.length, selectedTopic, apiKeys, selectedProvider, endInterview]);
+  }, [hasStartedInterview, messages.length, selectedTopic, apiKeys, selectedProvider, endInterview]);
 
   const handleTranscript = async (text: string, isFinal: boolean) => {
-    if (!text || isLoading) return;
+    if (!text) return;
 
     // Always reset the silence timer on any speech activity
     if (transcriptTimerRef.current) {
@@ -281,6 +350,36 @@ export function InterviewSession() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      {/* Pause Overlay */}
+      {isPaused && hasStartedInterview && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/70 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-10 flex flex-col items-center gap-4 shadow-2xl">
+            <h2 className="text-2xl font-bold text-gray-900">Interview Paused</h2>
+            <Button size="lg" className="w-48" onClick={resumeInterview}>
+              <Play className="mr-2 h-5 w-5" /> Resume
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Start Interview Overlay */}
+      {!hasStartedInterview && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-10 flex flex-col items-center gap-4 shadow-2xl max-w-sm w-full mx-4">
+            <h2 className="text-2xl font-bold text-gray-900">{selectedTopic}</h2>
+            <p className="text-gray-500 text-center text-sm">
+              Your interviewer is ready. Click below when you are.
+            </p>
+            <Button
+              size="lg"
+              className="w-full mt-2 text-base"
+              onClick={() => setHasStartedInterview(true)}
+            >
+              Start Interview
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Top Bar - Timer and Controls */}
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
@@ -339,7 +438,10 @@ export function InterviewSession() {
               onSpeakText={speakText}
               isListening={isListening}
               onListeningChange={setIsListening}
-              onSpeakingChange={setIsUserSpeaking}
+              onSpeakingChange={(speaking) => {
+                setIsUserSpeaking(speaking);
+                if (speaking) interruptAI();
+              }}
               isAISpeaking={isAISpeaking}
             />
           </div>
@@ -367,7 +469,7 @@ export function InterviewSession() {
                 speakText('Hello! This is a test of the text to speech system. Can you hear me?', () => {
                   console.log('Test complete');
                   setIsAISpeaking(false);
-                });
+                }, apiKeys['openai']);
               }}
             >
               Test Voice

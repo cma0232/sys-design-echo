@@ -83,10 +83,9 @@ export function SpeechInterface({
     };
 
     recognition.onerror = (event: any) => {
+      if (event.error === 'aborted' || event.error === 'no-speech') return;
       console.error('❌ Speech recognition error:', event.error);
-      if (event.error !== 'aborted') {
-        onListeningChange(false);
-      }
+      onListeningChange(false);
     };
 
     recognition.onend = () => {
@@ -195,22 +194,60 @@ export function SpeechInterface({
 }
 
 // Text-to-Speech utility
-export function speakText(text: string, onEnd?: () => void) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    console.error('Speech Synthesis not supported');
+let currentAudio: HTMLAudioElement | null = null;
+
+export function speakText(text: string, onEnd?: () => void, openaiApiKey?: string) {
+  if (typeof window === 'undefined') return;
+
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  window.speechSynthesis?.cancel();
+
+  if (!openaiApiKey) {
+    speakWithBrowser(text, onEnd);
     return;
   }
 
-  window.speechSynthesis.cancel();
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, apiKey: openaiApiKey, voice: 'nova' }),
+  })
+      .then((res) => {
+        if (!res.ok) throw new Error(`TTS API error: ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        currentAudio = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          currentAudio = null;
+          onEnd?.();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          currentAudio = null;
+          onEnd?.();
+        };
+        audio.play();
+      })
+      .catch((err) => {
+        console.error('OpenAI TTS failed, falling back to browser TTS:', err);
+        speakWithBrowser(text, onEnd);
+      });
+}
 
+
+function speakWithBrowser(text: string, onEnd?: () => void) {
+  if (!window.speechSynthesis) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.0;
+  utterance.rate = 1.05;
   utterance.pitch = 1.0;
   utterance.volume = 1.0;
-
-  if (onEnd) {
-    utterance.onend = onEnd;
-  }
-
+  if (onEnd) utterance.onend = onEnd;
   window.speechSynthesis.speak(utterance);
 }
